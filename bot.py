@@ -1,4 +1,4 @@
-# bot.py — Telegram бот для перевода манги (с индикатором прогресса)
+# bot.py — Telegram бот для перевода манги (с webhook)
 
 import logging
 from aiogram import Bot, Dispatcher, types
@@ -8,12 +8,11 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import easyocr
-import asyncio
 
 # --- Настройка логирования ---
 logging.basicConfig(level=logging.INFO)
 
-# --- Токен бота (замени YOUR_TOKEN на настоящий) ---
+# --- Токен бота (замените YOUR_TOKEN на свой) ---
 API_TOKEN = '8224578219:AAH3YSqUeLiVdMTCoPrVYyULRm6asscm6Qk'
 
 # --- Создаём бота и диспетчер ---
@@ -103,7 +102,25 @@ async def handle_photo(message: types.Message):
         await status_msg.edit_text(f"❌ Ошибка: {e}")
         print(f"Ошибка: {e}")
 
-# --- Запуск бота ---
-async def main():
-    print("Бот запущен...")
-    await dp.start_polling(bot)
+# --- Запуск через webhook ---
+async def on_startup():
+    webhook_url = "https://manga-translate-bot.onrender.com/webhook"
+    await bot.set_webhook(webhook_url)
+
+async def on_shutdown():
+    await bot.delete_webhook()
+
+# --- Точка входа ---
+if __name__ == "__main__":
+    from aiogram.webhook import WebhookServer
+    import asyncio
+
+    # Запускаем сервер
+    server = WebhookServer(host="0.0.0.0", port=int(os.environ.get("PORT", 80)))
+
+    # Запускаем вебхук
+    asyncio.run(server.run(
+        handle_update=lambda request: dp.process_update(types.Update(**request.json())),
+        on_startup=on_startup,
+        on_shutdown=on_shutdown
+    ))
